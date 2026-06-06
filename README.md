@@ -20,6 +20,7 @@ The app uses **EmailJS** to send the photo to your email. You must set this up b
 2. **Create an Email Service** (e.g., Gmail, Outlook, etc.).
    - Copy the **Service ID** (e.g., `service_abc123`).
 3. **Create an Email Template** with these variables:
+   - `{{to_email}}` — **the recipient email address** (set this as the template's "To Email" field)
    - `{{sender_name}}` — the sender's name
    - `{{sender_email}}` — the sender's email address
    - `{{message}}` — custom message from the sender

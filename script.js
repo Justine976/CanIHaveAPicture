@@ -5,6 +5,7 @@
    1. Go to https://www.emailjs.com/ and create a free account.
    2. Create an Email Service (e.g., Gmail, Outlook, etc.).
    3. Create an Email Template with these variables:
+        {{to_email}}      - the recipient email address (set this as the "To Email" field)
         {{sender_name}}   - the sender's name
         {{sender_email}}  - the sender's email address
         {{message}}       - custom message from sender
@@ -20,7 +21,7 @@
 const EMAILJS_CONFIG = {
     PUBLIC_KEY: 'Ou0iyeUQPLQjw5JVW',   // e.g. 'abc123def456'
     SERVICE_ID: 'service_79pai39',   // e.g. 'service_abc123'
-    TEMPLATE_ID: 'template_atk5zpe',  // e.g. 'template_xyz789'
+    TEMPLATE_ID: 'template_mitugag',  // e.g. 'template_xyz789'
 };
 // ═══════════════════════════════════════════════════════
 
@@ -179,6 +180,7 @@ async function sendPhoto() {
 
     try {
         const templateParams = {
+            to_email: senderData?.email || '',
             sender_name: senderData?.name || 'Someone',
             sender_email: senderData?.email || '',
             message: senderData?.message || '',
@@ -274,9 +276,6 @@ sendBtn.addEventListener('click', sendPhoto);
 takeAnotherBtn.addEventListener('click', () => {
     successStatus.classList.add('hidden');
     resetToCamera();
-    sendBtn.classList.remove('hidden');
-    sendBtn.disabled = false;
-    sendBtn.textContent = '✈️ Send Photo';
     // If stream ended, restart
     if (!mediaStream || !mediaStream.active) {
         startCamera();
