@@ -155,6 +155,8 @@ function resetToCamera() {
     captureBtn.classList.remove('hidden');
     retakeBtn.classList.add('hidden');
     sendBtn.classList.add('hidden');
+    sendBtn.disabled = false;
+    sendBtn.textContent = '✈️ Send Photo';
     sendingStatus.classList.add('hidden');
     successStatus.classList.add('hidden');
     errorStatus.classList.add('hidden');
