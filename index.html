@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CanIHaveAPicture</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- EmailJS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js">
+    </script>
+</head>
+<body>
+
+    <!-- ===== LANDING / CONFIG ===== -->
+    <div id="config-screen" class="screen active">
+        <div class="container">
+            <h1>📸 CanIHaveAPicture</h1>
+            <p class="subtitle">Invite someone to take a picture for you</p>
+
+            <form id="config-form">
+                <div class="form-group">
+                    <label for="sender-email">Your Email (where the photo will be sent)</label>
+                    <input
+                    type="email"
+                    id="sender-email"
+                    placeholder="you@example.com"
+                    required
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="sender-name">Your Name (optional)</label>
+                    <input
+                    type="text"
+                    id="sender-name"
+                    placeholder="e.g. John"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label for="message">Message for the photographer (optional)</label>
+                    <textarea
+                    id="message"
+                    rows="2"
+                    placeholder="e.g. Can you take a selfie for me?"
+                ></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="generate-link-btn">
+                ✨ Generate Invite Link
+            </button>
+        </form>
+
+        <!-- Generated link area -->
+        <div id="link-area" class="hidden">
+            <p class="link-label">Share this link with anyone to take a picture:</p>
+            <div class="link-box">
+                <input type="text" id="invite-link" readonly />
+                <button class="btn btn-small" id="copy-link-btn">📋 Copy</button>
+            </div>
+            <p class="hint">
+                The photo will be sent directly to <strong id="display-email"></strong>
+            </p>
+            <!-- Preview as the photographer -->
+            <button class="btn btn-secondary" id="open-camera-as-photographer-btn">
+                📷 Open Camera (as photographer)
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== CAMERA SCREEN ===== -->
+<div id="camera-screen" class="screen">
+    <div class="container">
+        <header class="camera-header">
+            <h2>📸 CanIHaveAPicture</h2>
+            <p class="camera-info" id="camera-info">
+                The photo will be sent to the sender
+            </p>
+        </header>
+
+        <div class="camera-view">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas" hidden></canvas>
+            <div id="camera-placeholder" class="camera-placeholder">
+                <span>📷</span>
+                <p>Camera will appear here</p>
+            </div>
+        </div>
+
+        <div class="camera-controls">
+            <button class="btn btn-capture" id="capture-btn" disabled>
+                📸 Take Picture
+            </button>
+            <button class="btn btn-secondary hidden" id="retake-btn">
+                🔄 Retake
+            </button>
+            <button class="btn btn-primary hidden" id="send-btn">
+                ✈️ Send Photo
+            </button>
+        </div>
+
+        <!-- Preview thumbnail -->
+        <div id="preview-area" class="hidden">
+            <img id="preview-img" alt="Captured photo" />
+        </div>
+
+        <div id="sending-status" class="hidden">
+            <p class="sending">Sending photo… ⏳</p>
+        </div>
+        <div id="success-status" class="hidden">
+            <p class="success">✅ Photo sent successfully!</p>
+            <p id="success-email-info"></p>
+            <button class="btn btn-secondary" id="take-another-btn">
+                📸 Take another photo
+            </button>
+        </div>
+        <div id="error-status" class="hidden">
+            <p class="error">❌ Something went wrong. Please try again.</p>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
