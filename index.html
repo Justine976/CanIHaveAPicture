@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f0f1a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
     <title>CanIHaveAPicture</title>
     <link rel="stylesheet" href="style.css" />
     <!-- EmailJS SDK -->
@@ -10,6 +15,23 @@
     </script>
 </head>
 <body>
+
+    <!-- ===== IN-APP BROWSER WARNING (Messenger, Facebook, Instagram, etc.) ===== -->
+    <div id="inapp-banner" class="inapp-banner hidden" role="alert">
+        <div class="inapp-content">
+            <span class="inapp-icon">⚠️</span>
+            <div class="inapp-text">
+                <strong>Camera won't work inside Messenger.</strong>
+                <span>Tap below to open this link in your browser (Chrome / Safari).</span>
+            </div>
+        </div>
+        <div class="inapp-actions">
+            <button class="btn btn-primary btn-small" id="open-external-btn">
+                🌐 Open in Browser
+            </button>
+            <button class="btn-link" id="dismiss-inapp-btn">Dismiss</button>
+        </div>
+    </div>
 
     <!-- ===== LANDING / CONFIG ===== -->
     <div id="config-screen" class="screen active">
@@ -24,6 +46,8 @@
                     type="email"
                     id="sender-email"
                     placeholder="you@example.com"
+                    autocomplete="email"
+                    inputmode="email"
                     required
                     />
                 </div>
@@ -34,6 +58,7 @@
                     type="text"
                     id="sender-name"
                     placeholder="e.g. John"
+                    autocomplete="name"
                     />
                 </div>
 
@@ -61,6 +86,10 @@
             <p class="hint">
                 The photo will be sent directly to <strong id="display-email"></strong>
             </p>
+            <!-- Native share (mobile friendly) -->
+            <button class="btn btn-secondary hidden" id="share-link-btn">
+                📤 Share Invite
+            </button>
             <!-- Preview as the photographer -->
             <button class="btn btn-secondary" id="open-camera-as-photographer-btn">
                 📷 Open Camera (as photographer)
@@ -80,7 +109,7 @@
         </header>
 
         <div class="camera-view">
-            <video id="video" autoplay playsinline></video>
+            <video id="video" autoplay playsinline muted></video>
             <canvas id="canvas" hidden></canvas>
             <div id="camera-placeholder" class="camera-placeholder">
                 <span>📷</span>
@@ -117,6 +146,9 @@
         </div>
         <div id="error-status" class="hidden">
             <p class="error">❌ Something went wrong. Please try again.</p>
+            <button class="btn btn-secondary hidden" id="retry-cam-btn">
+                🔁 Retry Camera
+            </button>
         </div>
     </div>
 </div>
