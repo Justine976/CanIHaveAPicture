@@ -59,7 +59,10 @@ const errorDetail = document.getElementById('error-detail');
 const takeAnotherBtn = document.getElementById('take-another-btn');
 const retryCamBtn = document.getElementById('retry-cam-btn');
 const retrySendBtn = document.getElementById('retry-send-btn');
+const retakeOnErrorBtn = document.getElementById('retake-on-error-btn');
+const flipBtn = document.getElementById('flip-btn');
 const cameraInfo = document.getElementById('camera-info');
+const cameraViewEl = document.querySelector('.camera-view');
 
 const inappBanner = document.getElementById('inapp-banner');
 const openExternalBtn = document.getElementById('open-external-btn');
@@ -69,6 +72,8 @@ let capturedDataUrl = null;
 let mediaStream = null;
 let senderData = null; // { email, name, message }
 let lastCameraError = null;
+let currentFacingMode = 'environment'; // 'environment' = back, 'user' = front
+let multiCameraSupported = false; // becomes true if device lists >1 video input
 
 // ─── Init EmailJS ─────────────────────────────────────
 (function initEmailJS() {
@@ -226,7 +231,7 @@ async function startCamera() {
     try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
             video: {
-                facingMode: { ideal: 'environment' },
+                facingMode: { ideal: currentFacingMode },
                 width: { ideal: 1280 },
                 height: { ideal: 960 },
             },
@@ -242,6 +247,32 @@ async function startCamera() {
         cameraPlaceholder.style.display = 'none';
         captureBtn.disabled = false;
         lastCameraError = null;
+
+        // Mirror the live preview for the front camera (selfie style).
+        // The captured photo is un-mirrored in capturePhoto() so it stays correct.
+        if (cameraViewEl) {
+            cameraViewEl.classList.toggle('video-flipped', currentFacingMode === 'user');
+        }
+
+        // Show the flip button only if the device has more than one camera.
+        // enumerateDevices() may not have labels until the first getUserMedia
+        // permission grant — we still treat "more than one videoinput" as
+        // multi-camera support.
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cams = devices.filter((d) => d.kind === 'videoinput');
+            multiCameraSupported = cams.length > 1;
+        } catch (e) {
+            multiCameraSupported = false;
+        }
+        if (flipBtn) {
+            if (multiCameraSupported) {
+                flipBtn.classList.remove('hidden');
+                flipBtn.disabled = false;
+            } else {
+                flipBtn.classList.add('hidden');
+            }
+        }
     } catch (err) {
         console.error('Camera error:', err);
         lastCameraError = err;
@@ -318,7 +349,17 @@ function capturePhoto() {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
+    // The live <video> element is CSS-mirrored (scaleX(-1)) when on the
+    // front camera so the user sees a familiar selfie preview. To make
+    // sure the CAPTURED photo isn't mirrored, we apply the inverse
+    // transform to the canvas context before drawing.
+    ctx.save();
+    if (currentFacingMode === 'user') {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+    }
     ctx.drawImage(video, 0, 0);
+    ctx.restore();
 
     // Compress for sending
     capturedDataUrl = encodeJpeg(canvas, MAX_PHOTO_DIM, PHOTO_QUALITY);
@@ -357,6 +398,37 @@ function resetToCamera() {
     successStatus.classList.add('hidden');
     errorStatus.classList.add('hidden');
     if (retryCamBtn) retryCamBtn.classList.add('hidden');
+    if (retrySendBtn) retrySendBtn.classList.add('hidden');
+    // Re-show the flip button if the device has multiple cameras
+    if (flipBtn && multiCameraSupported) {
+        flipBtn.classList.remove('hidden');
+    }
+}
+
+//
+// Switch between front and back cameras. Stops the current stream, flips
+// `currentFacingMode`, and re-requests a new stream.
+//
+async function flipCamera() {
+    if (flipBtn) flipBtn.disabled = true;
+    currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+    // Keep the captured preview around while flipping so the user doesn't
+    // see a flash of black. Only hide it if there was a capture in progress.
+    const wasCaptured = capturedDataUrl != null;
+    if (!wasCaptured) {
+        cameraPlaceholder.style.display = 'flex';
+        cameraPlaceholder.innerHTML = `
+            <span>🔄</span>
+            <p>Switching camera…</p>
+        `;
+    }
+    try {
+        await startCamera();
+    } finally {
+        if (flipBtn && multiCameraSupported) {
+            flipBtn.disabled = false;
+        }
+    }
 }
 
 //
@@ -459,21 +531,42 @@ async function sendPhoto() {
                 errorDetail.innerHTML =
                     'The photo is too large for EmailJS (free plan: ~50KB limit).<br>' +
                     'Mobile cameras produce big files — tap below to retry with a smaller version.';
+            } else if (isInAppBrowser()) {
+                // Common case on mobile: the in-app browser blocked the EmailJS
+                // request. Tell the user to open in a real browser.
+                errorDetail.innerHTML =
+                    'Send failed inside an in-app browser (Messenger, Instagram, etc.).<br>' +
+                    'Tap <strong>Open in Browser</strong> at the top to try with Chrome / Safari.';
             } else {
                 errorDetail.textContent = `Error ${status || ''}: ${rawText}`.trim();
             }
         }
 
-        // Show the "retry smaller" button on 413, or always as a last resort
+        // ALWAYS show the retry-send button on any error. This is the most
+        // important fix for mobile / Messenger where the button was previously
+        // easy to miss because the error block sat below the fold.
         if (retrySendBtn) {
-            if (isTooLarge) {
-                retrySendBtn.classList.remove('hidden');
-                retrySendBtn.textContent = '🔁 Retry with smaller size';
-            } else {
-                // Still expose it as a generic retry
-                retrySendBtn.classList.remove('hidden');
-                retrySendBtn.textContent = '🔁 Try with smaller size';
-            }
+            retrySendBtn.classList.remove('hidden');
+            retrySendBtn.textContent = isTooLarge
+                ? '🔁 Retry with smaller size'
+                : '🔁 Retry Send';
+        }
+        // Also show the "Retake Photo" button so the user can recover
+        // even if retrying the send doesn't help.
+        if (retakeOnErrorBtn) {
+            retakeOnErrorBtn.classList.remove('hidden');
+        }
+
+        // Hide the regular Send / Retake buttons in the controls row so the
+        // user only sees the error-recovery buttons (no dead-end state).
+        if (sendBtn) sendBtn.classList.add('hidden');
+        if (retakeBtn) retakeBtn.classList.add('hidden');
+
+        // Make sure the user can SEE the error block on small screens.
+        try {
+            errorStatus.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (e) {
+            /* older browsers */
         }
 
         sendBtn.disabled = false;
@@ -623,7 +716,24 @@ if (retrySendBtn) {
         // Hide the error UI and the button, then re-compress + re-send
         errorStatus.classList.add('hidden');
         retrySendBtn.classList.add('hidden');
+        if (retakeOnErrorBtn) retakeOnErrorBtn.classList.add('hidden');
         recompressSmaller();
+    });
+}
+
+if (retakeOnErrorBtn) {
+    retakeOnErrorBtn.addEventListener('click', () => {
+        // Go back to the camera — the user can take a new picture
+        errorStatus.classList.add('hidden');
+        retakeOnErrorBtn.classList.add('hidden');
+        if (retrySendBtn) retrySendBtn.classList.add('hidden');
+        resetToCamera();
+    });
+}
+
+if (flipBtn) {
+    flipBtn.addEventListener('click', () => {
+        flipCamera();
     });
 }
 

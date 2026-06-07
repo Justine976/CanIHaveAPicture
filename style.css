@@ -327,6 +327,13 @@ h2 {
     /* critical for iOS Safari + in-app browsers */
     -webkit-playsinline: true;
     playsinline: true;
+    /* Smooth transition when switching front/back */
+    transition: transform 0.25s ease;
+}
+/* Selfie-style mirror on the LIVE preview for the front camera.
+   The captured photo is un-mirrored in JS so it looks correct. */
+.camera-view.video-flipped video {
+    transform: scaleX(-1);
 }
 .camera-view canvas {
     display: none;
@@ -403,9 +410,25 @@ h2 {
     word-break: break-word;
     line-height: 1.4;
 }
-#error-status .btn {
-    margin-top: 10px;
+#error-status .error-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 6px;
 }
+#error-status .error-actions .btn {
+    margin-top: 0;
+    width: 100%;
+}
+#error-status #retry-send-btn {
+    /* Most important action — make sure it stands out */
+    background: #ff4757;
+    color: #fff;
+}
+#error-status #retry-send-btn:hover {
+    background: #e8414f;
+}
+
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 480px) {

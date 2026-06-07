@@ -121,8 +121,11 @@
             <button class="btn btn-capture" id="capture-btn" disabled>
                 📸 Take Picture
             </button>
+            <button class="btn btn-secondary btn-icon hidden" id="flip-btn" aria-label="Flip camera">
+                🔄 Flip
+            </button>
             <button class="btn btn-secondary hidden" id="retake-btn">
-                🔄 Retake
+                ↩️ Retake
             </button>
             <button class="btn btn-primary hidden" id="send-btn">
                 ✈️ Send Photo
@@ -147,12 +150,17 @@
         <div id="error-status" class="hidden">
             <p class="error">❌ Something went wrong. Please try again.</p>
             <p id="error-detail" class="error-detail"></p>
-            <button class="btn btn-secondary hidden" id="retry-send-btn">
-                🔁 Retry with smaller size
-            </button>
-            <button class="btn btn-secondary hidden" id="retry-cam-btn">
-                🔁 Retry Camera
-            </button>
+            <div class="error-actions">
+                <button class="btn btn-primary hidden" id="retry-send-btn">
+                    🔁 Retry Send
+                </button>
+                <button class="btn btn-secondary hidden" id="retry-cam-btn">
+                    🔁 Retry Camera
+                </button>
+                <button class="btn btn-secondary hidden" id="retake-on-error-btn">
+                    ↩️ Retake Photo
+                </button>
+            </div>
         </div>
     </div>
 </div>
