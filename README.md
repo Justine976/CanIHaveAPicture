@@ -130,6 +130,12 @@ ngrok http 8000
 ### ❓ "EmailJS is not configured" alert
 - Open `script.js` and fill in `PUBLIC_KEY`, `SERVICE_ID`, and `TEMPLATE_ID`.
 
+### ❓ "Something went wrong" on mobile (but works on desktop)
+- The EmailJS free plan limits each request body to **~50KB**. Mobile cameras produce much larger photos than webcams, so the base64 image can blow past that limit and EmailJS rejects it with a `413 / Request entity too large` error.
+- The app now **auto-compresses** every photo to 1024px / JPEG quality 0.6 at capture time, and on a 413 error it shows a **“🔁 Retry with smaller size”** button that re-encodes the same photo at 640px / quality 0.4 before sending again.
+- If the issue persists, open the page in **Chrome or Safari** (not in the Messenger/Instagram in-app browser), or upgrade to a paid EmailJS plan for a larger body limit.
+
+
 ### ❓ Can I test without sending to a real email?
 - Yes! Use the **Open Camera (as photographer)** button on the config screen to test locally. The send will fail if EmailJS isn't configured, but you can see the camera and capture flow.
 

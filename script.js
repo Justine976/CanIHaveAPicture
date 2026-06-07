@@ -55,8 +55,10 @@ const sendingStatus = document.getElementById('sending-status');
 const successStatus = document.getElementById('success-status');
 const successEmailInfo = document.getElementById('success-email-info');
 const errorStatus = document.getElementById('error-status');
+const errorDetail = document.getElementById('error-detail');
 const takeAnotherBtn = document.getElementById('take-another-btn');
 const retryCamBtn = document.getElementById('retry-cam-btn');
+const retrySendBtn = document.getElementById('retry-send-btn');
 const cameraInfo = document.getElementById('camera-info');
 
 const inappBanner = document.getElementById('inapp-banner');
@@ -277,19 +279,58 @@ function stopCamera() {
     video.srcObject = null;
 }
 
+//
+// EmailJS free plan limits the request body to ~50KB. Mobile cameras can
+// easily produce 1-3MB JPEGs, so we re-encode at a smaller dimension and
+// lower quality by default. This keeps the base64 payload small enough to
+// actually be delivered.
+//
+const MAX_PHOTO_DIM = 1024;     // longest side, pixels
+const PHOTO_QUALITY  = 0.6;     // JPEG quality (0..1)
+const EMAILJS_BODY_LIMIT = 45 * 1024; // bytes (leave headroom for other params)
+
+function encodeJpeg(srcCanvas, maxDim, quality) {
+    let w = srcCanvas.width;
+    let h = srcCanvas.height;
+    if (w > maxDim || h > maxDim) {
+        if (w >= h) {
+            h = Math.max(1, Math.round((maxDim / w) * h));
+            w = maxDim;
+        } else {
+            w = Math.max(1, Math.round((maxDim / h) * w));
+            h = maxDim;
+        }
+    }
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    c.getContext('2d').drawImage(srcCanvas, 0, 0, w, h);
+    return c.toDataURL('image/jpeg', quality);
+}
+
 function capturePhoto() {
     if (!video.videoWidth || !video.videoHeight) {
         // Camera isn't actually producing frames
         alert('Camera is not ready yet. Please wait a moment.');
         return;
     }
+    // Draw the raw frame into our canvas
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
-    capturedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
 
-    // Show preview
+    // Compress for sending
+    capturedDataUrl = encodeJpeg(canvas, MAX_PHOTO_DIM, PHOTO_QUALITY);
+    console.log(
+        'Captured photo:',
+        video.videoWidth + 'x' + video.videoHeight,
+        '→',
+        capturedDataUrl.length,
+        'bytes (base64)'
+    );
+
+    // Show preview (use the compressed version to keep memory low)
     previewImg.src = capturedDataUrl;
     previewArea.classList.remove('hidden');
 
@@ -299,6 +340,7 @@ function capturePhoto() {
     retakeBtn.classList.remove('hidden');
     sendBtn.classList.remove('hidden');
     errorStatus.classList.add('hidden');
+    if (retrySendBtn) retrySendBtn.classList.add('hidden');
 }
 
 function resetToCamera() {
@@ -317,6 +359,46 @@ function resetToCamera() {
     if (retryCamBtn) retryCamBtn.classList.add('hidden');
 }
 
+//
+// Re-compress the captured photo to a smaller size. Used when the first
+// send fails with HTTP 413 (EmailJS free plan: 50KB body limit).
+// Drops dimension by ~33% and quality by ~30% each step.
+//
+function recompressSmaller() {
+    if (!capturedDataUrl) return;
+    const img = new Image();
+    img.onload = () => {
+        const c = document.createElement('canvas');
+        // Reduce by ~33% from the current base64's implied dimensions is
+        // hard to know exactly, so just halve the encoded-data heuristic:
+        // try a much smaller dimension (640) and lower quality (0.4).
+        const targetDim = 640;
+        const targetQuality = 0.4;
+        const scale = Math.min(targetDim / img.width, targetDim / img.height, 1);
+        c.width = Math.max(1, Math.round(img.width * scale));
+        c.height = Math.max(1, Math.round(img.height * scale));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        const newData = c.toDataURL('image/jpeg', targetQuality);
+        console.log(
+            'Recompressed:',
+            capturedDataUrl.length,
+            '→',
+            newData.length,
+            'bytes (',
+            Math.round((1 - newData.length / capturedDataUrl.length) * 100),
+            '% smaller)'
+        );
+        capturedDataUrl = newData;
+        previewImg.src = newData;
+        // Now try sending again
+        sendPhoto();
+    };
+    img.onerror = () => {
+        alert('Could not re-process the photo. Please retake it.');
+    };
+    img.src = capturedDataUrl;
+}
+
 // ─── Send photo via EmailJS ──────────────────────────
 async function sendPhoto() {
     if (!capturedDataUrl) return;
@@ -332,6 +414,8 @@ async function sendPhoto() {
     }
 
     sendingStatus.classList.remove('hidden');
+    errorStatus.classList.add('hidden');
+    if (retrySendBtn) retrySendBtn.classList.add('hidden');
     sendBtn.disabled = true;
     sendBtn.textContent = '⏳ Sending…';
 
@@ -358,11 +442,40 @@ async function sendPhoto() {
         successEmailInfo.textContent = `📬 Photo sent to ${senderData?.email || 'the sender'}`;
         sendBtn.classList.add('hidden');
         retakeBtn.classList.add('hidden');
+        if (retrySendBtn) retrySendBtn.classList.add('hidden');
     } catch (err) {
         console.error('Send error:', err);
         sendingStatus.classList.add('hidden');
         errorStatus.classList.remove('hidden');
         if (retryCamBtn) retryCamBtn.classList.add('hidden');
+
+        // EmailJS error shape: { status, text }
+        const status = err && (err.status || (err.response && err.response.status));
+        const rawText = (err && (err.text || err.message)) || 'Unknown error';
+        const isTooLarge = status === 413 || /too large|request entity|payload|exceed/i.test(rawText);
+
+        if (errorDetail) {
+            if (isTooLarge) {
+                errorDetail.innerHTML =
+                    'The photo is too large for EmailJS (free plan: ~50KB limit).<br>' +
+                    'Mobile cameras produce big files — tap below to retry with a smaller version.';
+            } else {
+                errorDetail.textContent = `Error ${status || ''}: ${rawText}`.trim();
+            }
+        }
+
+        // Show the "retry smaller" button on 413, or always as a last resort
+        if (retrySendBtn) {
+            if (isTooLarge) {
+                retrySendBtn.classList.remove('hidden');
+                retrySendBtn.textContent = '🔁 Retry with smaller size';
+            } else {
+                // Still expose it as a generic retry
+                retrySendBtn.classList.remove('hidden');
+                retrySendBtn.textContent = '🔁 Try with smaller size';
+            }
+        }
+
         sendBtn.disabled = false;
         sendBtn.textContent = '✈️ Send Photo';
     }
@@ -502,6 +615,15 @@ if (retryCamBtn) {
         retryCamBtn.classList.add('hidden');
         errorStatus.classList.add('hidden');
         startCamera();
+    });
+}
+
+if (retrySendBtn) {
+    retrySendBtn.addEventListener('click', () => {
+        // Hide the error UI and the button, then re-compress + re-send
+        errorStatus.classList.add('hidden');
+        retrySendBtn.classList.add('hidden');
+        recompressSmaller();
     });
 }
 

@@ -395,6 +395,14 @@ h2 {
     font-size: 1rem;
     word-break: break-word;
 }
+#error-status .error-detail {
+    color: #ffb3b8;
+    font-size: 0.85rem;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    word-break: break-word;
+    line-height: 1.4;
+}
 #error-status .btn {
     margin-top: 10px;
 }
