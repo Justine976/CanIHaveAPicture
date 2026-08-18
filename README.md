@@ -1,7 +1,7 @@
 # CanIHaveAPicture 📸
 
 A web app that lets you invite anyone to take a picture using their camera and send it directly to your email. No backend server required — everything runs in the browser.
-
+```vibe coded hehe```
 ## How It Works
 
 1. **You (the sender)** enter your email address and generate a unique invite link.
